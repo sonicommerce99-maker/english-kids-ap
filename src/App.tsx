@@ -227,69 +227,89 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
-      {/* Strict 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-3.5 flex items-center justify-between gap-4">
-        {/* Zone 1: Single Text Element Wordmark */}
-        <a
-          href="#top"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab('videos');
-          }}
-          className="text-xl font-bold tracking-tight text-slate-900 whitespace-nowrap font-display"
-        >
-          Super Bear English
-        </a>
+      {/* Mobile + Desktop Responsive Header with Visible Schedule / Calendar & Grammar Lab on Phone */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        {/* Top Row on Mobile: Brand Title + Schedule Button + Cloud Sync */}
+        <div className="flex items-center justify-between gap-2">
+          <a
+            href="#top"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('videos');
+            }}
+            className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 whitespace-nowrap font-display"
+          >
+            Super Bear English
+          </a>
 
-        {/* Zone 2: 4 Clean Navigation Links */}
-        <nav className="flex items-center gap-5 sm:gap-7 text-sm font-semibold text-slate-600 overflow-x-auto">
+          {/* Primary Actions (Always visible on Mobile Phone & Desktop!) */}
+          <div className="flex items-center gap-2 shrink-0 sm:hidden">
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors whitespace-nowrap cursor-pointer shadow-xs"
+            >
+              <span>{totalStarsEarned} ★ · Schedule</span>
+            </button>
+
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
+                title={`Signed in as ${user.email}`}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={handleGoogleSignIn}
+                className="px-2.5 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sync</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation Links (Visible & Full-Width Pill Tabs on Mobile Phone, Clean Links on Desktop) */}
+        <nav className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-7 text-xs sm:text-sm font-semibold text-slate-600">
           <button
             onClick={() => setActiveTab('videos')}
-            className={`py-1 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`py-2 sm:py-1 px-2 sm:px-0 rounded-lg sm:rounded-none text-center transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === 'videos'
-                ? 'text-slate-900 underline decoration-amber-500 decoration-2 underline-offset-8'
-                : 'hover:text-slate-900'
+                ? 'bg-slate-900 text-white sm:bg-transparent sm:text-slate-900 sm:underline sm:decoration-amber-500 sm:decoration-2 sm:underline-offset-8 font-bold'
+                : 'bg-slate-100 text-slate-700 sm:bg-transparent hover:text-slate-900'
             }`}
           >
-            100 Real Videos
+            100 Videos
           </button>
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`py-1 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`py-2 sm:py-1 px-2 sm:px-0 rounded-lg sm:rounded-none text-center transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === 'calendar'
-                ? 'text-slate-900 underline decoration-amber-500 decoration-2 underline-offset-8'
-                : 'hover:text-slate-900'
+                ? 'bg-amber-400 text-slate-950 sm:bg-transparent sm:text-slate-900 sm:underline sm:decoration-amber-500 sm:decoration-2 sm:underline-offset-8 font-bold'
+                : 'bg-slate-100 text-slate-700 sm:bg-transparent hover:text-slate-900'
             }`}
           >
-            3/Week Calendar
+            📅 Schedule (3/Wk)
           </button>
           <button
             onClick={() => setActiveTab('grammar')}
-            className={`py-1 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`py-2 sm:py-1 px-2 sm:px-0 rounded-lg sm:rounded-none text-center transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === 'grammar'
-                ? 'text-slate-900 underline decoration-amber-500 decoration-2 underline-offset-8'
-                : 'hover:text-slate-900'
+                ? 'bg-slate-900 text-white sm:bg-transparent sm:text-slate-900 sm:underline sm:decoration-amber-500 sm:decoration-2 sm:underline-offset-8 font-bold'
+                : 'bg-slate-100 text-slate-700 sm:bg-transparent hover:text-slate-900'
             }`}
           >
             Grammar Lab
           </button>
-          <button
-            onClick={() => setActiveTab('stack')}
-            className={`py-1 transition-colors whitespace-nowrap cursor-pointer ${
-              activeTab === 'stack'
-                ? 'text-slate-900 underline decoration-amber-500 decoration-2 underline-offset-8'
-                : 'hover:text-slate-900'
-            }`}
-          >
-            Vercel & Supabase
-          </button>
         </nav>
 
-        {/* Zone 3: 1-2 Primary Actions */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Desktop Right Actions */}
+        <div className="hidden sm:flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => setActiveTab('calendar')}
-            className="hidden sm:inline-flex px-3.5 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+            className="inline-flex px-3.5 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
           >
             {totalStarsEarned} ★ · Schedule
           </button>
@@ -316,44 +336,7 @@ export default function App() {
       </header>
 
       {/* Main Content Container (1440px max-w) */}
-      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* ALWAYS-VISIBLE TOP BAR FOR GITHUB / VERCEL / SUPABASE DOWNLOAD SO USER NEVER HAS TO SEARCH FOR IT */}
-        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-900 text-white border-2 border-amber-400 shadow-md flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-mono-num font-bold text-amber-400">
-              ★ READY FOR YOUR NEW GITHUB, VERCEL & SUPABASE PROJECTS
-            </div>
-            <p className="text-sm sm:text-base font-bold text-white mt-0.5">
-              Click the yellow button to download the .ZIP file immediately, or open the step-by-step GitHub / Vercel / Supabase guide!
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={triggerDirectZipDownload}
-              className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-colors cursor-pointer shadow-sm flex items-center gap-2"
-            >
-              <FolderArchive className="w-4 h-4" />
-              <span>⬇️ Download Project (.ZIP) Now</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('stack')}
-              className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition-colors cursor-pointer shadow-sm"
-            >
-              {activeTab === 'stack'
-                ? '✓ Viewing GitHub / Vercel / Supabase Steps Below'
-                : '👉 View GitHub / Vercel / Supabase Steps'}
-            </button>
-            {activeTab !== 'videos' && (
-              <button
-                onClick={() => setActiveTab('videos')}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer"
-              >
-                ← Back to 100 Videos
-              </button>
-            )}
-          </div>
-        </div>
-
+      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-8">
         {/* TAB 1: 100 REAL YOUTUBE VIDEOS + BILINGUAL SUBTITLES + 10 Q&A PER VIDEO */}
         {activeTab === 'videos' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
