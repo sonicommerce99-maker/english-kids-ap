@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProgress(data, userId) {
+      return data.keys().hasAll([
+        'userId',
+        'startDate',
+        'studyDays',
+        'completedEpisodesCount',
+        'totalStars',
+        'scoresMap',
+        'customYoutubeIds',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'startDate',
+        'studyDays',
+        'completedEpisodesCount',
+        'totalStars',
+        'scoresMap',
+        'customYoutubeIds',
+        'updatedAt'
+      ]) &&
+      data.userId is string &&
+      data.userId == userId &&
+      data.userId == request.auth.uid &&
+      data.startDate is string &&
+      data.startDate.size() >= 10 &&
+      data.startDate.size() <= 30 &&
+      data.studyDays is string &&
+      data.studyDays.size() >= 3 &&
+      data.studyDays.size() <= 40 &&
+      data.completedEpisodesCount is int &&
+      data.completedEpisodesCount >= 0 &&
+      data.completedEpisodesCount <= 100 &&
+      data.totalStars is int &&
+      data.totalStars >= 0 &&
+      data.totalStars <= 1000 &&
+      data.scoresMap is map &&
+      data.scoresMap.size() <= 105 &&
+      data.customYoutubeIds is map &&
+      data.customYoutubeIds.size() <= 105 &&
+      data.updatedAt == request.time;
+    }
+
+    match /userProgress/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProgress(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProgress(incoming(), userId) && incoming().userId == existing().userId && incoming().diff(existing()).affectedKeys().hasOnly(['startDate', 'studyDays', 'completedEpisodesCount', 'totalStars', 'scoresMap', 'customYoutubeIds', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+  }
+}
