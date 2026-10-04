@@ -42,7 +42,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
   const [startSeconds, setStartSeconds] = useState(0);
 
   const activeYoutubeId = customYoutubeId || episode.realVideo.youtubeId;
-  const embedSrc = `https://www.youtube-nocookie.com/embed/${activeYoutubeId}?rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en&start=${startSeconds}`;
+  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en&start=${startSeconds}`;
   const directWatchUrl = `https://www.youtube.com/watch?v=${activeYoutubeId}`;
 
   const handleApplyCustomUrl = (e: React.FormEvent) => {
@@ -103,6 +103,16 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
             <Link2 className="w-3.5 h-3.5 text-amber-400" />
             <span>Change YouTube Link</span>
           </button>
+
+          {customYoutubeId && customYoutubeId !== episode.realVideo.youtubeId && (
+            <button
+              onClick={() => onSaveCustomYoutubeUrl(episode.id, episode.realVideo.youtubeId)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors font-bold whitespace-nowrap cursor-pointer"
+              title="Reset to verified default video"
+            >
+              <span>Reset to Verified Video</span>
+            </button>
+          )}
         </div>
       </div>
 
