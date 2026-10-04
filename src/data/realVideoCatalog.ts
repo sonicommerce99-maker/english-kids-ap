@@ -593,13 +593,14 @@ function buildMatchedTenQuestions(
   const [v1, v2, v3] = topic.vocab;
   const r1Q = primaryRule.practiceQuestions[episodeId % primaryRule.practiceQuestions.length];
   const r2Q = secondaryRule.practiceQuestions[episodeId % secondaryRule.practiceQuestions.length];
+  const baseId = episodeId * 100;
 
   return [
     {
-      id: `ep-${episodeId}-q1`,
-      type: 'comprehension',
+      id: baseId + 1,
+      category: 'Comprehension',
       questionEn: `1. [Video Comprehension] What is the main topic of Video #${episodeId} ("${topic.realVideoTitle}")?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         topic.comprehensionFacts.mainSubject,
         'How to bake a chocolate birthday cake in a restaurant',
@@ -608,13 +609,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 0,
       explanationEn: `Correct! This video from ${topic.channel} focuses on: ${topic.comprehensionFacts.mainSubject}.`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q2`,
-      type: 'comprehension',
+      id: baseId + 2,
+      category: 'Comprehension',
       questionEn: `2. [Video Comprehension] Which key action or process is explained in this video?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         'Sleeping all day inside a dark cave without moving',
         topic.comprehensionFacts.keyAction,
@@ -623,13 +625,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 1,
       explanationEn: `Great job! In the video, we learn about ${topic.comprehensionFacts.keyAction.toLowerCase()}.`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q3`,
-      type: 'comprehension',
+      id: baseId + 3,
+      category: 'Comprehension',
       questionEn: `3. [Video Comprehension] Which important setting or focus appears in "${topic.realVideoTitle}"?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         'A noisy supermarket checkout line',
         'An underground parking garage',
@@ -638,13 +641,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 2,
       explanationEn: `Spot on! The video highlights: ${topic.comprehensionFacts.importantPlaceOrObject}.`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q4`,
-      type: 'comprehension',
+      id: baseId + 4,
+      category: 'Comprehension',
       questionEn: `4. [Video Comprehension] What is the main lesson or takeaway from watching this episode?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         'Never ask questions or read books about nature',
         'Always skip homework and play video games all night',
@@ -653,13 +657,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 3,
       explanationEn: `Exactly! Key takeaway: ${topic.comprehensionFacts.lessonTakeaway}.`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q5`,
-      type: 'vocabulary',
+      id: baseId + 5,
+      category: 'Vocabulary',
       questionEn: `5. [Vocabulary] What does the English word "${v1.word}" (${v1.phonetic}) mean?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         v1.definitionEn,
         'A small plastic spoon used for eating ice cream',
@@ -668,13 +673,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 0,
       explanationEn: `"${v1.word}" means: ${v1.definitionEn} Example: "${v1.example}"`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q6`,
-      type: 'vocabulary',
+      id: baseId + 6,
+      category: 'Vocabulary',
       questionEn: `6. [Vocabulary] Which word from this lesson matches this definition: "${v2.definitionEn}"?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         'Umbrella',
         v2.word,
@@ -683,13 +689,14 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 1,
       explanationEn: `Correct! "${v2.word}" (${v2.phonetic}): ${v2.definitionEn}`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q7`,
-      type: 'vocabulary',
+      id: baseId + 7,
+      category: 'Vocabulary',
       questionEn: `7. [Vocabulary in Context] Choose the best word to complete this sentence: "${v3.example.replace(new RegExp(v3.word, 'i'), '_____')}"`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
         'Refrigerator',
         'Bicycle',
@@ -698,42 +705,46 @@ function buildMatchedTenQuestions(
       ],
       correctIndex: 2,
       explanationEn: `Well done! Complete sentence: "${v3.example}"`,
-      explanationFr: ''
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q8`,
-      type: 'grammar',
-      questionEn: `8. [Grammar Rule #1 — ${primaryRule.titleEn}] ${r1Q.questionEn}`,
-      questionFr: '',
+      id: baseId + 8,
+      category: 'Grammar',
+      questionEn: `8. [Grammar Rule #1 — ${primaryRule.titleEn}] ${r1Q.prompt}`,
+      questionTranslation: { fr: '', ar: '' },
       options: r1Q.options,
       correctIndex: r1Q.correctIndex,
-      explanationEn: `${r1Q.explanationEn} (Formula: ${primaryRule.formulaPositive})`,
-      explanationFr: ''
+      explanationEn: `Correct answer: "${r1Q.options[r1Q.correctIndex]}". Formula: ${primaryRule.formulaPositive}`,
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q9`,
-      type: 'grammar',
-      questionEn: `9. [Grammar Rule #2 — ${secondaryRule.titleEn}] ${r2Q.questionEn}`,
-      questionFr: '',
+      id: baseId + 9,
+      category: 'Grammar',
+      questionEn: `9. [Grammar Rule #2 — ${secondaryRule.titleEn}] ${r2Q.prompt}`,
+      questionTranslation: { fr: '', ar: '' },
       options: r2Q.options,
       correctIndex: r2Q.correctIndex,
-      explanationEn: `${r2Q.explanationEn} (Formula: ${secondaryRule.formulaPositive})`,
-      explanationFr: ''
+      explanationEn: `Correct answer: "${r2Q.options[r2Q.correctIndex]}". Formula: ${secondaryRule.formulaPositive}`,
+      explanationFr: '',
+      explanationAr: ''
     },
     {
-      id: `ep-${episodeId}-q10`,
-      type: 'grammar',
+      id: baseId + 10,
+      category: 'Grammar',
       questionEn: `10. [Grammar Review] Which sentence correctly uses ${primaryRule.titleEn.split('(')[0].trim()}?`,
-      questionFr: '',
+      questionTranslation: { fr: '', ar: '' },
       options: [
-        primaryRule.characterExamples[0].english,
-        primaryRule.commonMistakes[0].wrong,
+        primaryRule.storyExamples[0].english,
+        primaryRule.commonMistake.wrong,
         'Yesterday we tomorrow going is play.',
         'She are have two books every days.'
       ],
       correctIndex: 0,
-      explanationEn: `Correct! "${primaryRule.characterExamples[0].english}" follows ${primaryRule.titleEn} (${primaryRule.formulaPositive}).`,
-      explanationFr: ''
+      explanationEn: `Correct! "${primaryRule.storyExamples[0].english}" follows ${primaryRule.titleEn} (${primaryRule.formulaPositive}).`,
+      explanationFr: '',
+      explanationAr: ''
     }
   ];
 }
@@ -809,6 +820,6 @@ export const REAL_VIDEO_EPISODES: RealVideoEpisode[] = Array.from({ length: 100 
       example: w.example
     })),
     script: [],
-    quiz: buildMatchedTenQuestions(id, videoTopic, primaryRule, secondaryRule)
+    questions: buildMatchedTenQuestions(id, videoTopic, primaryRule, secondaryRule)
   };
 });
