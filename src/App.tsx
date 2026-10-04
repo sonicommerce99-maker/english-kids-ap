@@ -355,7 +355,7 @@ export default function App() {
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                   <span>Real Video #{currentEpisode.id} of 100</span>
                   <span aria-hidden="true">·</span>
-                  <span>Duration: {currentEpisode.durationFormatted} mins (15–20m)</span>
+                  <span>Duration: {currentEpisode.durationFormatted} mins (15–35m)</span>
                   <span aria-hidden="true">·</span>
                   <span>Level {currentEpisode.level} (Age 9)</span>
                   <span aria-hidden="true">·</span>
@@ -437,7 +437,7 @@ export default function App() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    100 Real Videos (15–20m)
+                    100 Real Videos (15–35m)
                   </h2>
                   <p className="text-xs text-slate-500">
                     YouTube Links · Subtitles · 10 Q&A per video
@@ -581,7 +581,7 @@ export default function App() {
                           isCurrent ? 'text-sky-200' : 'text-amber-800'
                         }`}
                       >
-                        2 Rules: {ep.grammarTopicTitle.split('(')[0].trim()} + {ep.secondaryGrammarTopicTitle.split('(')[0].trim()}
+                        Grammar: {ep.grammarTopicTitle.split('(')[0].trim()}
                       </div>
                     </div>
                   );

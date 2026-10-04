@@ -38,8 +38,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
   const [urlInput, setUrlInput] = useState('');
 
   const activeYoutubeId = customYoutubeId || episode.realVideo.youtubeId;
-  // Enforces exact 15-20 minute session window via start=0&end=clipEndSeconds and turns on official YouTube English Subtitles (cc_load_policy=1&cc_lang_pref=en)
-  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en&start=${episode.realVideo.clipStartSeconds}&end=${episode.realVideo.clipEndSeconds}`;
+  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en`;
   const directWatchUrl = `https://www.youtube.com/watch?v=${activeYoutubeId}`;
 
   const handleApplyCustomUrl = (e: React.FormEvent) => {
@@ -76,20 +75,11 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => onJumpToGrammarRule(episode.grammarRuleId)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors font-semibold whitespace-nowrap cursor-pointer"
-            title="Open Grammar Rule #1 in Grammar Lab"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors font-semibold whitespace-nowrap cursor-pointer"
+            title="Open Grammar Lesson in Grammar Lab"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Rule 1: {episode.grammarTopicTitle.split('(')[0].trim()}</span>
-          </button>
-
-          <button
-            onClick={() => onJumpToGrammarRule(episode.secondaryGrammarRuleId)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition-colors font-semibold whitespace-nowrap cursor-pointer"
-            title="Open Grammar Rule #2 in Grammar Lab"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Rule 2: {episode.secondaryGrammarTopicTitle.split('(')[0].trim()}</span>
+            <span>Grammar Lesson: {episode.grammarTopicTitle.split('(')[0].trim()}</span>
           </button>
 
           <button

@@ -7,9 +7,11 @@ import {
   HelpCircle,
   Lock,
   Send,
-  BookOpen
+  BookOpen,
+  AlertTriangle
 } from 'lucide-react';
 import { RealVideoEpisode } from '../data/realVideoCatalog';
+import { GRAMMAR_RULES } from '../data/curriculum';
 
 interface EpisodeQuizProps {
   episode: RealVideoEpisode;
@@ -43,6 +45,9 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
     return acc;
   }, 0);
 
+  const grammarLesson =
+    GRAMMAR_RULES.find((r) => r.id === episode.grammarRuleId) || GRAMMAR_RULES[0];
+
   const handleSelectOption = (questionId: number, optionIndex: number) => {
     if (isSubmitted) return; // Lock choices once submitted until Retry
     setSelectedAnswers((prev) => ({
@@ -63,36 +68,29 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
   };
 
   return (
-    <section className="mt-8 bg-white rounded-2xl border border-slate-200 p-6 sm:p-8">
-      {/* Header with the 2 Grammar Rules Tested in This Video */}
+    <section className="mt-8 bg-white rounded-2xl border border-slate-200 p-5 sm:p-8">
+      {/* Header with the 1 Focused Grammar Lesson for This Video */}
       <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <div className="text-xs font-medium text-slate-500">
-            <span>Video #{episode.id} Assessment</span>
+            <span>Video #{episode.id} Mixed Quiz</span>
             <span className="mx-1.5" aria-hidden="true">·</span>
-            <span>10 Questions (Comprehension, Vocabulary & 2 Grammar Rules)</span>
+            <span>10 Mixed Questions (Video Comprehension, Vocabulary & 1 Grammar Rule)</span>
             <span className="mx-1.5" aria-hidden="true">·</span>
             <span>Level {episode.level}</span>
           </div>
           <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-            10 Questions — Answer All 10 First to Reveal Solutions!
+            10 Mixed Questions — Answer All 10 First to Reveal Solutions!
           </h3>
 
-          {/* 2 Grammar Rules Badges */}
+          {/* Single Grammar Lesson Badge */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <button
               onClick={() => onJumpToGrammarRule(episode.grammarRuleId)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold hover:bg-amber-100 transition-colors cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-              <span>Grammar Rule #1: {episode.grammarTopicTitle}</span>
-            </button>
-            <button
-              onClick={() => onJumpToGrammarRule(episode.secondaryGrammarRuleId)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-xs font-bold hover:bg-sky-100 transition-colors cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-sky-600" />
-              <span>Grammar Rule #2: {episode.secondaryGrammarTopicTitle}</span>
+              <span>Grammar Focus: {episode.grammarTopicTitle}</span>
             </button>
           </div>
         </div>
@@ -131,7 +129,7 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
         </div>
       </div>
 
-      {/* 10 Questions List */}
+      {/* 10 Mixed Questions List */}
       <div className="mt-6 space-y-5">
         {episode.questions.map((q, idx) => {
           const userChoice = selectedAnswers[q.id];
@@ -188,7 +186,7 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
               </div>
 
               <h4 className="text-base sm:text-lg font-bold text-slate-900">
-                {idx + 1}. {q.questionEn}
+                {q.questionEn}
               </h4>
 
               {/* 4 Multiple-Choice Options */}
@@ -201,13 +199,11 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
                     'bg-white border-slate-200 text-slate-800 hover:border-amber-400';
 
                   if (!isSubmitted) {
-                    // BEFORE SUBMIT: Highlight user's choice in neutral amber/slate, NEVER reveal green/red yet!
                     if (isThisSelected) {
                       btnStyle =
                         'bg-slate-900 border-slate-900 text-white font-bold shadow-xs';
                     }
                   } else {
-                    // AFTER SUBMITTING ALL 10: Reveal correct & wrong answers
                     if (isThisCorrect) {
                       btnStyle =
                         'bg-emerald-600 border-emerald-700 text-white font-bold';
@@ -310,6 +306,86 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
             <span>Try All 10 Questions Again</span>
           </button>
         )}
+      </div>
+
+      {/* ONE COMPLETE GRAMMAR LESSON DIRECTLY BELOW THE QUIZ ANSWERS */}
+      <div className="mt-8 pt-8 border-t-2 border-slate-200">
+        <div className="bg-amber-50/70 rounded-2xl border border-amber-200 p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-mono-num text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-md border border-amber-300">
+              GRAMMAR LESSON FOR VIDEO #{episode.id} · {grammarLesson.code}
+            </span>
+            <button
+              onClick={() => onJumpToGrammarRule(grammarLesson.id)}
+              className="text-xs font-bold text-amber-900 underline hover:text-amber-700 cursor-pointer"
+            >
+              Open Full Grammar Lab →
+            </button>
+          </div>
+
+          <h4 className="text-lg sm:text-xl font-bold text-slate-900 mt-2">
+            {grammarLesson.titleEn}
+          </h4>
+          <p className="text-sm text-slate-700 mt-1 leading-relaxed">
+            {grammarLesson.whenToUseEn}
+          </p>
+
+          {/* Positive / Negative / Question Formulas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+            <div className="p-3.5 rounded-xl bg-white border border-emerald-200">
+              <div className="text-[11px] font-bold text-emerald-700">
+                ● POSITIVE (+)
+              </div>
+              <div className="font-mono-num text-xs font-bold text-slate-900 mt-1">
+                {grammarLesson.formulaPositive}
+              </div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white border border-rose-200">
+              <div className="text-[11px] font-bold text-rose-700">
+                ▲ NEGATIVE (-)
+              </div>
+              <div className="font-mono-num text-xs font-bold text-slate-900 mt-1">
+                {grammarLesson.formulaNegative}
+              </div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white border border-sky-200">
+              <div className="text-[11px] font-bold text-sky-700">
+                ? QUESTION (?)
+              </div>
+              <div className="font-mono-num text-xs font-bold text-slate-900 mt-1">
+                {grammarLesson.formulaQuestion}
+              </div>
+            </div>
+          </div>
+
+          {/* Clear English Examples */}
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-bold text-slate-800">
+              Examples in English:
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {grammarLesson.storyExamples.map((ex, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900"
+                >
+                  “{ex.english}”
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Common Mistake Box */}
+          <div className="mt-4 p-3.5 rounded-xl bg-white border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-rose-700 font-bold">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Wrong: “{grammarLesson.commonMistake.wrong}”</span>
+            </div>
+            <div className="text-emerald-700 font-bold">
+              ✓ Right: “{grammarLesson.commonMistake.right}”
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
