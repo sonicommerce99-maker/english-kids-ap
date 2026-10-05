@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ExternalLink,
   Youtube,
@@ -6,13 +6,22 @@ import {
   Clock,
   Link2,
   Check,
-  Subtitles
+  Subtitles,
+  Play,
+  Pause,
+  RotateCcw
 } from 'lucide-react';
 import { RealVideoEpisode } from '../data/realVideoCatalog';
+
+export interface VideoCommandTrigger {
+  action: 'play' | 'pause' | 'mute' | 'unmute' | 'restart' | 'forward' | 'backward';
+  timestamp: number;
+}
 
 interface RealVideoPlayerProps {
   episode: RealVideoEpisode;
   customYoutubeId?: string;
+  videoCommand?: VideoCommandTrigger | null;
   onSaveCustomYoutubeUrl: (episodeId: number, youtubeId: string) => void;
   onJumpToGrammarRule: (ruleId: string) => void;
 }
@@ -31,15 +40,58 @@ function extractYoutubeId(input: string): string | null {
 export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
   episode,
   customYoutubeId,
+  videoCommand,
   onSaveCustomYoutubeUrl,
   onJumpToGrammarRule
 }) => {
   const [showCustomUrlInput, setShowCustomUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const activeYoutubeId = customYoutubeId || episode.realVideo.youtubeId;
-  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en`;
+  // enablejsapi=1 allows our TV Voice Controller to Play, Pause, Mute, Unmute, and Restart the YouTube video!
+  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?enablejsapi=1&rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en`;
   const directWatchUrl = `https://www.youtube.com/watch?v=${activeYoutubeId}`;
+
+  const sendYoutubeCommand = (func: string, args: any[] = []) => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({
+        event: 'command',
+        func,
+        args
+      }),
+      '*'
+    );
+  };
+
+  useEffect(() => {
+    if (!videoCommand) return;
+    switch (videoCommand.action) {
+      case 'play':
+        sendYoutubeCommand('playVideo');
+        break;
+      case 'pause':
+        sendYoutubeCommand('pauseVideo');
+        break;
+      case 'mute':
+        sendYoutubeCommand('mute');
+        break;
+      case 'unmute':
+        sendYoutubeCommand('unMute');
+        break;
+      case 'restart':
+        sendYoutubeCommand('seekTo', [0, true]);
+        sendYoutubeCommand('playVideo');
+        break;
+      case 'forward':
+        sendYoutubeCommand('playVideo');
+        break;
+      case 'backward':
+        sendYoutubeCommand('seekTo', [0, true]);
+        break;
+    }
+  }, [videoCommand]);
 
   const handleApplyCustomUrl = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +105,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
 
   return (
     <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-lg">
-      {/* Top Info Bar with BOTH Grammar Rules */}
+      {/* Top Info Bar with Single Grammar Lesson */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3.5 bg-slate-950 border-b border-slate-800 text-xs text-slate-300">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono-num font-bold text-amber-400">
@@ -64,7 +116,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
           <span aria-hidden="true">·</span>
           <span className="flex items-center gap-1 text-emerald-400 font-mono-num font-semibold">
             <Clock className="w-3.5 h-3.5" />
-            {episode.durationFormatted} mins Session
+            {episode.durationFormatted} mins
           </span>
           <span aria-hidden="true">·</span>
           <span className="text-sky-300 font-semibold">
@@ -85,7 +137,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
           <button
             onClick={() => setShowCustomUrlInput((prev) => !prev)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors font-medium whitespace-nowrap cursor-pointer"
-            title="Paste any custom YouTube URL for this episode"
+            title="Paste or speak a custom YouTube URL for this episode"
           >
             <Link2 className="w-3.5 h-3.5 text-amber-400" />
             <span>Change YouTube Link</span>
@@ -110,7 +162,7 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
           className="bg-slate-900 px-5 py-3 border-b border-slate-800 flex flex-wrap items-center gap-2"
         >
           <span className="text-xs font-semibold text-slate-300">
-            Paste any YouTube Link or 11-char Video ID for Episode #{episode.id}:
+            Paste or Speak YouTube Link / ID for Episode #{episode.id}:
           </span>
           <input
             type="text"
@@ -129,9 +181,10 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
         </form>
       )}
 
-      {/* REAL 16:9 YOUTUBE PLAYER WITH OFFICIAL ENGLISH SUBTITLES [CC] & 15-20M AUTO-STOP */}
+      {/* REAL 16:9 YOUTUBE PLAYER WITH VOICE API & OFFICIAL ENGLISH SUBTITLES [CC] */}
       <div className="relative w-full aspect-video bg-black">
         <iframe
+          ref={iframeRef}
           key={`${activeYoutubeId}-${episode.id}`}
           src={embedSrc}
           title={`Episode ${episode.id}: ${episode.title}`}
@@ -141,16 +194,43 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
         />
       </div>
 
-      {/* Clean Footer Bar: Official YouTube CC Status + Direct YouTube Links */}
+      {/* Clean Footer Bar: Big TV Remote Buttons + Official YouTube CC Status */}
       <div className="bg-slate-950 px-4 sm:px-5 py-3.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-amber-400 font-semibold">
-          <Subtitles className="w-4 h-4 shrink-0" />
-          <span>
-            Official YouTube English Subtitles [CC] Active · Auto-stops at {episode.durationFormatted} mins
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => sendYoutubeCommand('playVideo')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold transition-colors cursor-pointer focus:ring-2 focus:ring-white"
+          >
+            <Play className="w-4 h-4" />
+            <span>▶️ Play Video (or say "Play")</span>
+          </button>
+
+          <button
+            onClick={() => sendYoutubeCommand('pauseVideo')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold transition-colors cursor-pointer focus:ring-2 focus:ring-white"
+          >
+            <Pause className="w-4 h-4" />
+            <span>⏸️ Pause (or say "Pause")</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sendYoutubeCommand('seekTo', [0, true]);
+              sendYoutubeCommand('playVideo');
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Restart</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-amber-400 font-semibold mr-2">
+            <Subtitles className="w-4 h-4 shrink-0" />
+            <span>English [CC] Active · {episode.durationFormatted}m</span>
+          </span>
+
           <a
             href={directWatchUrl}
             target="_blank"
@@ -159,16 +239,6 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
           >
             <Youtube className="w-4 h-4" />
             <span>Watch on YouTube</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-
-          <a
-            href={episode.realVideo.searchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors whitespace-nowrap"
-          >
-            <span>More on {episode.realVideo.topicCategory}</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>

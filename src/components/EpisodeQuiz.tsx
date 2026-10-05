@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -8,14 +8,26 @@ import {
   Lock,
   Send,
   BookOpen,
-  AlertTriangle
+  AlertTriangle,
+  Volume2,
+  Mic
 } from 'lucide-react';
 import { RealVideoEpisode } from '../data/realVideoCatalog';
 import { GRAMMAR_RULES } from '../data/curriculum';
 
+export interface VoiceQuizCommand {
+  type: 'select_answer' | 'submit' | 'reset' | 'read_question';
+  questionNumber?: number; // 1 to 10
+  optionIndex?: number; // 0 to 3
+  timestamp: number;
+}
+
 interface EpisodeQuizProps {
   episode: RealVideoEpisode;
   savedScore?: number;
+  activeQuestionNumber: number;
+  voiceQuizCommand?: VoiceQuizCommand | null;
+  onChangeActiveQuestionNumber: (qNum: number) => void;
   onSaveScore: (episodeId: number, score: number) => void;
   onJumpToGrammarRule: (ruleId: string) => void;
 }
@@ -23,11 +35,15 @@ interface EpisodeQuizProps {
 export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
   episode,
   savedScore,
+  activeQuestionNumber,
+  voiceQuizCommand,
+  onChangeActiveQuestionNumber,
   onSaveScore,
   onJumpToGrammarRule
 }) => {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   // Reset selections and lock answers when switching episodes
   useEffect(() => {
@@ -48,12 +64,70 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
   const grammarLesson =
     GRAMMAR_RULES.find((r) => r.id === episode.grammarRuleId) || GRAMMAR_RULES[0];
 
-  const handleSelectOption = (questionId: number, optionIndex: number) => {
+  const readQuestionAloud = (qIndex0To9: number) => {
+    const q = episode.questions[qIndex0To9];
+    if (!q) return;
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const text = `${q.questionEn}. Option A: ${q.options[0]}. Option B: ${q.options[1]}. Option C: ${q.options[2]}. Option D: ${q.options[3]}.`;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        utter.rate = 0.95;
+        window.speechSynthesis.speak(utter);
+      }
+    } catch {
+      // ignore speech synthesis errors
+    }
+  };
+
+  // Handle incoming TV Voice Commands for selecting options, reading aloud, submitting, or resetting
+  useEffect(() => {
+    if (!voiceQuizCommand) return;
+
+    if (
+      voiceQuizCommand.type === 'select_answer' &&
+      voiceQuizCommand.questionNumber !== undefined &&
+      voiceQuizCommand.optionIndex !== undefined
+    ) {
+      const qIdx = voiceQuizCommand.questionNumber - 1;
+      const targetQuestion = episode.questions[qIdx];
+      if (targetQuestion && !isSubmitted) {
+        setSelectedAnswers((prev) => ({
+          ...prev,
+          [targetQuestion.id]: voiceQuizCommand.optionIndex!
+        }));
+        const el = questionRefs.current[voiceQuizCommand.questionNumber];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    } else if (voiceQuizCommand.type === 'submit') {
+      setIsSubmitted(true);
+      onSaveScore(episode.id, finalScore);
+    } else if (voiceQuizCommand.type === 'reset') {
+      setSelectedAnswers({});
+      setIsSubmitted(false);
+    } else if (
+      voiceQuizCommand.type === 'read_question' &&
+      voiceQuizCommand.questionNumber !== undefined
+    ) {
+      const qNum = voiceQuizCommand.questionNumber;
+      const el = questionRefs.current[qNum];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      readQuestionAloud(qNum - 1);
+    }
+  }, [voiceQuizCommand]);
+
+  const handleSelectOption = (questionId: number, optionIndex: number, qNumber1To10: number) => {
     if (isSubmitted) return; // Lock choices once submitted until Retry
     setSelectedAnswers((prev) => ({
       ...prev,
       [questionId]: optionIndex
     }));
+    onChangeActiveQuestionNumber(qNumber1To10 < 10 ? qNumber1To10 + 1 : 10);
   };
 
   const handleSubmitAllTen = () => {
@@ -65,6 +139,7 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
   const handleResetQuiz = () => {
     setSelectedAnswers({});
     setIsSubmitted(false);
+    onChangeActiveQuestionNumber(1);
   };
 
   return (
@@ -75,15 +150,15 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
           <div className="text-xs font-medium text-slate-500">
             <span>Video #{episode.id} Mixed Quiz</span>
             <span className="mx-1.5" aria-hidden="true">·</span>
-            <span>10 Mixed Questions (Video Comprehension, Vocabulary & 1 Grammar Rule)</span>
+            <span>Say “Option A / B / C / D” or “Question 2 Option B” by Voice!</span>
             <span className="mx-1.5" aria-hidden="true">·</span>
             <span>Level {episode.level}</span>
           </div>
           <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-            10 Mixed Questions — Answer All 10 First to Reveal Solutions!
+            10 Mixed Questions — Speak or Click to Answer All 10!
           </h3>
 
-          {/* Single Grammar Lesson Badge */}
+          {/* Single Grammar Lesson Badge + Voice Hint */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <button
               onClick={() => onJumpToGrammarRule(episode.grammarRuleId)}
@@ -92,6 +167,11 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
               <BookOpen className="w-3.5 h-3.5 text-amber-600" />
               <span>Grammar Focus: {episode.grammarTopicTitle}</span>
             </button>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-amber-300 text-xs font-bold">
+              <Mic className="w-3.5 h-3.5" />
+              <span>Active TV Question: #{activeQuestionNumber} (Say “Option A/B/C/D”)</span>
+            </span>
           </div>
         </div>
 
@@ -132,6 +212,8 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
       {/* 10 Mixed Questions List */}
       <div className="mt-6 space-y-5">
         {episode.questions.map((q, idx) => {
+          const qNum = idx + 1;
+          const isTvFocused = activeQuestionNumber === qNum && !isSubmitted;
           const userChoice = selectedAnswers[q.id];
           const isPicked = userChoice !== undefined;
           const isCorrect = userChoice === q.correctIndex;
@@ -141,6 +223,8 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
             cardStyle = isCorrect
               ? 'bg-emerald-50/50 border-emerald-300'
               : 'bg-rose-50/50 border-rose-300';
+          } else if (isTvFocused) {
+            cardStyle = 'bg-amber-50/60 border-2 border-amber-500 shadow-md ring-2 ring-amber-400/40';
           } else if (isPicked) {
             cardStyle = 'bg-amber-50/30 border-amber-300';
           }
@@ -148,41 +232,66 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
           return (
             <div
               key={q.id}
-              className={`p-5 rounded-xl border transition-colors ${cardStyle}`}
+              ref={(el) => {
+                questionRefs.current[qNum] = el;
+              }}
+              onClick={() => onChangeActiveQuestionNumber(qNum)}
+              className={`p-5 rounded-xl border transition-all ${cardStyle}`}
             >
               {/* Question Header */}
-              <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="font-mono-num font-bold text-slate-800">
-                    Question {idx + 1} of 10
+                    Question {qNum} of 10
                   </span>
                   <span aria-hidden="true">·</span>
                   <span className="font-semibold text-amber-800">{q.category}</span>
+                  {isTvFocused && (
+                    <span className="px-2 py-0.5 rounded-md bg-slate-900 text-amber-300 font-bold text-[11px]">
+                      🎙️ TV Voice Target (Say “Option A / B / C / D”)
+                    </span>
+                  )}
                 </div>
 
-                {!isSubmitted ? (
-                  <span className="font-mono-num text-xs font-semibold text-slate-500">
-                    {isPicked ? '✓ Option Selected' : 'Select 1 option'}
-                  </span>
-                ) : (
-                  <span
-                    className={`font-bold flex items-center gap-1 ${
-                      isCorrect ? 'text-emerald-700' : 'text-rose-700'
-                    }`}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChangeActiveQuestionNumber(qNum);
+                      readQuestionAloud(idx);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200/80 hover:bg-slate-300 text-slate-800 font-bold text-xs cursor-pointer"
+                    title="Read question and options aloud on TV"
                   >
-                    {isCorrect ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>● CORRECT (+1 Point)</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-4 h-4" />
-                        <span>▲ INCORRECT</span>
-                      </>
-                    )}
-                  </span>
-                )}
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Read Aloud</span>
+                  </button>
+
+                  {!isSubmitted ? (
+                    <span className="font-mono-num text-xs font-semibold text-slate-500">
+                      {isPicked ? '✓ Option Selected' : 'Say Option A/B/C/D'}
+                    </span>
+                  ) : (
+                    <span
+                      className={`font-bold flex items-center gap-1 ${
+                        isCorrect ? 'text-emerald-700' : 'text-rose-700'
+                      }`}
+                    >
+                      {isCorrect ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>● CORRECT (+1 Point)</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          <span>▲ INCORRECT</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <h4 className="text-base sm:text-lg font-bold text-slate-900">
@@ -220,15 +329,18 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
                   return (
                     <button
                       key={optIdx}
-                      onClick={() => handleSelectOption(q.id, optIdx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectOption(q.id, optIdx, qNum);
+                      }}
                       disabled={isSubmitted}
-                      className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-colors ${
+                      className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-colors focus:ring-4 focus:ring-amber-400 ${
                         isSubmitted ? 'cursor-default' : 'cursor-pointer'
                       } ${btnStyle}`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono-num text-xs font-bold opacity-80">
-                          {letter}.
+                        <span className="font-mono-num text-xs font-extrabold px-2 py-0.5 rounded bg-amber-400/20 text-amber-600">
+                          {letter}
                         </span>
                         <span>{option}</span>
                       </div>
@@ -266,11 +378,11 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
           {!isSubmitted ? (
             allTenAnswered ? (
               <span className="text-emerald-700 font-bold">
-                ✓ All 10 questions answered! Click the button to reveal all correct answers and your score.
+                ✓ All 10 questions answered! Say “Submit” or click the button to reveal all correct answers!
               </span>
             ) : (
               <span>
-                Please answer all 10 questions first ({10 - answeredCount} remaining) before revealing the answers.
+                Please answer all 10 questions first ({10 - answeredCount} remaining) — Say “Option A, B, C, or D”!
               </span>
             )
           ) : (
@@ -293,7 +405,7 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
             <Send className="w-4 h-4" />
             <span>
               {allTenAnswered
-                ? 'Check My 10 Answers & Show Solutions'
+                ? 'Check My 10 Answers & Show Solutions (or say "Submit")'
                 : `Answer All 10 Questions First (${answeredCount}/10)`}
             </span>
           </button>
@@ -303,7 +415,7 @@ export const EpisodeQuiz: React.FC<EpisodeQuizProps> = ({
             className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center gap-2 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Try All 10 Questions Again</span>
+            <span>Try All 10 Questions Again (or say "Reset Quiz")</span>
           </button>
         )}
       </div>

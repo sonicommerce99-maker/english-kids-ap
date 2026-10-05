@@ -12,10 +12,8 @@ import {
   ExternalLink,
   Youtube,
   LogIn,
-  LogOut,
-  FolderArchive
+  LogOut
 } from 'lucide-react';
-import JSZip from 'jszip';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import {
   doc,
@@ -33,11 +31,12 @@ import {
 import { WorldZoneId } from './data/curriculum';
 import { REAL_VIDEO_EPISODES } from './data/realVideoCatalog';
 import { ZONES } from './data/episodeSeedsPart1';
-import { RealVideoPlayer } from './components/RealVideoPlayer';
-import { EpisodeQuiz } from './components/EpisodeQuiz';
+import { RealVideoPlayer, VideoCommandTrigger } from './components/RealVideoPlayer';
+import { EpisodeQuiz, VoiceQuizCommand } from './components/EpisodeQuiz';
 import { GrammarLabTab } from './components/GrammarLabTab';
 import { WeeklyCalendarPlanner } from './components/WeeklyCalendarPlanner';
-import { StackSetupHub, triggerDirectZipDownload } from './components/StackSetupHub';
+import { StackSetupHub } from './components/StackSetupHub';
+import { VoiceTvController } from './components/VoiceTvController';
 
 type ActiveTab = 'videos' | 'calendar' | 'grammar' | 'stack';
 
@@ -47,8 +46,12 @@ export default function App() {
   const [levelFilter, setLevelFilter] = useState<'ALL' | 'L3' | 'L4'>('ALL');
   const [zoneFilter, setZoneFilter] = useState<'ALL' | WorldZoneId>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [subtitleLang, setSubtitleLang] = useState<'fr' | 'ar' | 'darija' | 'all'>('all');
   const [grammarTargetRuleId, setGrammarTargetRuleId] = useState<string | null>(null);
+
+  // Smart TV Voice & Remote Control State
+  const [activeQuestionNumber, setActiveQuestionNumber] = useState<number>(1);
+  const [videoCommand, setVideoCommand] = useState<VideoCommandTrigger | null>(null);
+  const [voiceQuizCommand, setVoiceQuizCommand] = useState<VoiceQuizCommand | null>(null);
 
   // Schedule & Scores State (Synced with Cloud Firestore + Local fallback)
   const [user, setUser] = useState<User | null>(null);
@@ -103,7 +106,7 @@ export default function App() {
     return () => unsub();
   }, [authReady, user]);
 
-  // Save state to Cloud Firestore + LocalStorage
+  // Save helper (saves both to localStorage and Cloud Firestore if signed in)
   const persistUserProgress = async (
     nextScores: Record<number, number>,
     nextCustomYt: Record<number, string>,
@@ -199,9 +202,8 @@ export default function App() {
         const matchId = ep.id.toString() === q || `#${ep.id}` === q;
         const matchTitle =
           ep.title.toLowerCase().includes(q) ||
-          ep.subtitleFr.toLowerCase().includes(q) ||
-          ep.subtitleAr.includes(q) ||
-          ep.grammarTopicTitle.toLowerCase().includes(q);
+          ep.grammarTopicTitle.toLowerCase().includes(q) ||
+          ep.realVideo.topicCategory.toLowerCase().includes(q);
         return matchId || matchTitle;
       }
       return true;
@@ -221,13 +223,14 @@ export default function App() {
 
   const handleSelectEpisodeToWatch = (episodeId: number) => {
     setSelectedEpisodeId(episodeId);
+    setActiveQuestionNumber(1);
     setActiveTab('videos');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
-      {/* Mobile + Desktop Responsive Header with Visible Schedule / Calendar & Grammar Lab on Phone */}
+      {/* Mobile + Desktop + Smart TV Responsive Header */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         {/* Top Row on Mobile: Brand Title + Schedule Button + Cloud Sync */}
         <div className="flex items-center justify-between gap-2">
@@ -242,7 +245,7 @@ export default function App() {
             Super Bear English
           </a>
 
-          {/* Primary Actions (Always visible on Mobile Phone & Desktop!) */}
+          {/* Primary Actions (Always visible on Mobile Phone!) */}
           <div className="flex items-center gap-2 shrink-0 sm:hidden">
             <button
               onClick={() => setActiveTab('calendar')}
@@ -336,21 +339,87 @@ export default function App() {
       </header>
 
       {/* Main Content Container (1440px max-w) */}
-      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        {/* TAB 1: 100 REAL YOUTUBE VIDEOS + BILINGUAL SUBTITLES + 10 Q&A PER VIDEO */}
+      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        {/* HANDS-FREE SMART TV VOICE & REMOTE CONTROLLER BAR */}
+        <VoiceTvController
+          currentEpisodeId={currentEpisode.id}
+          currentEpisodeTitle={currentEpisode.title}
+          activeQuestionNumber={activeQuestionNumber}
+          onChangeActiveQuestionNumber={setActiveQuestionNumber}
+          onSelectEpisode={handleSelectEpisodeToWatch}
+          onNextEpisode={() =>
+            handleSelectEpisodeToWatch(
+              currentEpisode.id < 100 ? currentEpisode.id + 1 : 1
+            )
+          }
+          onPrevEpisode={() =>
+            handleSelectEpisodeToWatch(
+              currentEpisode.id > 1 ? currentEpisode.id - 1 : 100
+            )
+          }
+          onSwitchTab={(tab) => {
+            setActiveTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onSearchText={(q) => {
+            setSearchQuery(q);
+            setActiveTab('videos');
+          }}
+          onFilterLevel={(lvl) => {
+            setLevelFilter(lvl);
+            setActiveTab('videos');
+          }}
+          onVideoCommand={(action) => {
+            setActiveTab('videos');
+            setVideoCommand({ action, timestamp: Date.now() });
+          }}
+          onAnswerQuestion={(qNum, optIdx) => {
+            setActiveTab('videos');
+            setVoiceQuizCommand({
+              type: 'select_answer',
+              questionNumber: qNum,
+              optionIndex: optIdx,
+              timestamp: Date.now()
+            });
+          }}
+          onSubmitQuiz={() => {
+            setActiveTab('videos');
+            setVoiceQuizCommand({
+              type: 'submit',
+              timestamp: Date.now()
+            });
+          }}
+          onResetQuiz={() => {
+            setActiveTab('videos');
+            setVoiceQuizCommand({
+              type: 'reset',
+              timestamp: Date.now()
+            });
+          }}
+          onReadQuestionAloud={(qNum) => {
+            setActiveTab('videos');
+            setVoiceQuizCommand({
+              type: 'read_question',
+              questionNumber: qNum,
+              timestamp: Date.now()
+            });
+          }}
+        />
+
+        {/* TAB 1: 100 REAL YOUTUBE VIDEOS + SUBTITLES + 10 MIXED Q&A + 1 GRAMMAR LESSON */}
         {activeTab === 'videos' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left / Center Stage (8 Columns on Desktop) */}
             <div className="lg:col-span-8">
-              {/* Real Embedded YouTube Player + Direct Links + 100% English Subtitles */}
               <RealVideoPlayer
                 episode={currentEpisode}
                 customYoutubeId={customYoutubeIds[currentEpisode.id]}
+                videoCommand={videoCommand}
                 onSaveCustomYoutubeUrl={handleSaveCustomYoutubeUrl}
                 onJumpToGrammarRule={handleJumpToGrammarRule}
               />
 
-              {/* Episode Summary, 2 Grammar Rules & English Vocabulary Definitions */}
+              {/* Episode Summary & English Vocabulary Definitions */}
               <div className="mt-6 bg-white rounded-2xl border border-slate-200 p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                   <span>Real Video #{currentEpisode.id} of 100</span>
@@ -423,10 +492,13 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 10 Comprehension, Vocabulary & 2-Grammar-Rule Questions (Answer All 10 First to Reveal) */}
+              {/* 10 Mixed Questions + 1 Grammar Lesson Below Answers */}
               <EpisodeQuiz
                 episode={currentEpisode}
                 savedScore={episodeScores[currentEpisode.id]}
+                activeQuestionNumber={activeQuestionNumber}
+                voiceQuizCommand={voiceQuizCommand}
+                onChangeActiveQuestionNumber={setActiveQuestionNumber}
                 onSaveScore={handleSaveScore}
                 onJumpToGrammarRule={handleJumpToGrammarRule}
               />
@@ -440,7 +512,7 @@ export default function App() {
                     100 Real Videos (15–35m)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    YouTube Links · Subtitles · 10 Q&A per video
+                    Voice Search · Subtitles · 10 Q&A per video
                   </p>
                 </div>
                 <span className="font-mono-num text-xs font-bold text-amber-700">
@@ -448,14 +520,14 @@ export default function App() {
                 </span>
               </div>
 
-              {/* Search Input */}
+              {/* Search Input (Also populated automatically by Voice Search!) */}
               <div className="relative mt-3">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search video # (1-100) or title..."
+                  placeholder='Search or say "Search space"...'
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -519,10 +591,7 @@ export default function App() {
                   return (
                     <div
                       key={ep.id}
-                      onClick={() => {
-                        setSelectedEpisodeId(ep.id);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
+                      onClick={() => handleSelectEpisodeToWatch(ep.id)}
                       className={`w-full text-left p-3 rounded-xl border transition-colors cursor-pointer ${
                         isCurrent
                           ? 'bg-slate-900 border-slate-900 text-white'
@@ -596,13 +665,13 @@ export default function App() {
           <WeeklyCalendarPlanner
             startDate={startDate}
             studyDaysPattern={studyDaysPattern}
-            onUpdateScheduleSettings={handleUpdateScheduleSettings}
             episodeScores={episodeScores}
+            onUpdateScheduleSettings={handleUpdateScheduleSettings}
             onSelectEpisodeToWatch={handleSelectEpisodeToWatch}
           />
         )}
 
-        {/* TAB 3: DEDICATED GRAMMAR LAB */}
+        {/* TAB 3: GRAMMAR LAB */}
         {activeTab === 'grammar' && (
           <GrammarLabTab
             initialRuleId={grammarTargetRuleId}
@@ -610,7 +679,7 @@ export default function App() {
           />
         )}
 
-        {/* TAB 4: VERCEL / GITHUB / SUPABASE EXPORT & CLOUD DATABASE SYNC */}
+        {/* TAB 4: STACK SETUP HUB */}
         {activeTab === 'stack' && (
           <StackSetupHub
             userEmail={user?.email}
@@ -618,13 +687,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {/* Clean Quiet Footer */}
-      <footer className="bg-white border-t border-slate-200 py-5 px-6 text-center text-xs text-slate-500">
-        Super Bear English · 100 Real YouTube Videos (15–20 mins) · 3 Videos/Week Calendar · 1,000 Comprehension & Grammar Questions · Vercel / GitHub / Supabase Ready
-      </footer>
     </div>
   );
 }
-
-
