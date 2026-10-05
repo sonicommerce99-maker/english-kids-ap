@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Mic,
-  MicOff,
   Tv,
   Volume2,
   Play,
   Pause,
   SkipForward,
   SkipBack,
-  HelpCircle,
-  CheckCircle2,
   Sparkles,
+  HelpCircle,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -37,24 +34,24 @@ interface VoiceTvControllerProps extends VoiceActionHandlers {
 }
 
 const NUMBER_WORDS: Record<string, number> = {
-  one: 1, un: 1, واحد: 1, '1': 1, first: 1,
-  two: 2, deux: 2, جوج: 2, اثنان: 2, '2': 2, second: 2,
-  three: 3, trois: 3, ثلاثة: 3, تلاتة: 3, '3': 3, third: 3,
-  four: 4, quatre: 4, اربعة: 4, ربعة: 4, '4': 4, fourth: 4,
-  five: 5, cinq: 5, خمسة: 5, '5': 5, fifth: 5,
-  six: 6, ستة: 6, '6': 6, sixth: 6,
-  seven: 7, sept: 7, سبعة: 7, '7': 7, seventh: 7,
-  eight: 8, huit: 8, ثمانية: 8, تمنية: 8, '8': 8, eighth: 8,
-  nine: 9, neuf: 9, تسعة: 9, تسعود: 9, '9': 9, ninth: 9,
-  ten: 10, dix: 10, عشرة: 10, '10': 10, tenth: 10
+  one: 1, un: 1, une: 1, واحد: 1, '1': 1, first: 1, premier: 1,
+  two: 2, deux: 2, جوج: 2, اثنان: 2, '2': 2, second: 2, deuxième: 2,
+  three: 3, trois: 3, ثلاثة: 3, تلاتة: 3, '3': 3, third: 3, troisième: 3,
+  four: 4, quatre: 4, اربعة: 4, ربعة: 4, '4': 4, fourth: 4, quatrième: 4,
+  five: 5, cinq: 5, خمسة: 5, '5': 5, fifth: 5, cinquième: 5,
+  six: 6, ستة: 6, '6': 6, sixth: 6, sixième: 6,
+  seven: 7, sept: 7, سبعة: 7, '7': 7, seventh: 7, septième: 7,
+  eight: 8, huit: 8, ثمانية: 8, تمنية: 8, '8': 8, eighth: 8, huitième: 8,
+  nine: 9, neuf: 9, تسعة: 9, تسعود: 9, '9': 9, ninth: 9, neuvième: 9,
+  ten: 10, dix: 10, عشرة: 10, '10': 10, tenth: 10, dixième: 10
 };
 
 function parseOptionLetter(raw: string): number | null {
   const s = raw.trim().toLowerCase();
-  if (/\b(option a|answer a|letter a|choice a|reponse a|réponse a|خيار a|أ|a)\b/.test(s)) return 0;
-  if (/\b(option b|answer b|letter b|choice b|reponse b|réponse b|خيار b|ب|b|bee|be)\b/.test(s)) return 1;
-  if (/\b(option c|answer c|letter c|choice c|reponse c|réponse c|خيار c|ج|c|see|sea)\b/.test(s)) return 2;
-  if (/\b(option d|answer d|letter d|choice d|reponse d|réponse d|خيار d|د|d|dee)\b/.test(s)) return 3;
+  if (/\b(option a|answer a|letter a|choice a|reponse a|réponse a|خيار a|أ|a|1|one|un)\b/.test(s)) return 0;
+  if (/\b(option b|answer b|letter b|choice b|reponse b|réponse b|خيار b|ب|b|bee|be|2|two|deux)\b/.test(s)) return 1;
+  if (/\b(option c|answer c|letter c|choice c|reponse c|réponse c|خيار c|ج|c|see|sea|3|three|trois)\b/.test(s)) return 2;
+  if (/\b(option d|answer d|letter d|choice d|reponse d|réponse d|خيار d|د|d|dee|4|four|quatre)\b/.test(s)) return 3;
   return null;
 }
 
@@ -74,19 +71,15 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
   onResetQuiz,
   onReadQuestionAloud
 }) => {
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [continuousMode, setContinuousMode] = useState<boolean>(true);
-  const [lastTranscript, setLastTranscript] = useState<string>('');
+  const [liveDictationText, setLiveDictationText] = useState<string>('');
+  const [lastExecutedText, setLastExecutedText] = useState<string>('');
   const [lastFeedback, setLastFeedback] = useState<string>(
-    'Press MIC or OK on your TV Remote and speak: "Play video", "Video 5", "Question 1 Option A", "Submit"...'
+    'Ready! Just press your TV Remote Voice Button and speak — no Start/Stop button needed!'
   );
   const [showHelpGuide, setShowHelpGuide] = useState<boolean>(false);
-  const [manualCommandInput, setManualCommandInput] = useState<string>('');
-  const [voiceLang, setVoiceLang] = useState<'en-US' | 'fr-FR' | 'ar-MA'>('en-US');
 
-  const recognitionRef = useRef<any>(null);
-  const shouldKeepListeningRef = useRef<boolean>(false);
-  const voiceInputBoxRef = useRef<HTMLInputElement | null>(null);
+  const hiddenReceiverRef = useRef<HTMLInputElement | null>(null);
+  const debounceTimerRef = useRef<any>(null);
 
   const speakFeedback = useCallback((text: string) => {
     try {
@@ -98,7 +91,7 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         window.speechSynthesis.speak(utter);
       }
     } catch {
-      // ignore speech synthesis errors on some TVs
+      // ignore
     }
   }, []);
 
@@ -107,9 +100,10 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
       const text = rawTranscript.toLowerCase().trim();
       if (!text) return;
 
-      setLastTranscript(rawTranscript);
+      setLastExecutedText(rawTranscript);
+      setLiveDictationText('');
 
-      // 1. Check for Question + Option in one sentence: e.g., "question 3 option b" or "question two a" or "سؤال 1 ب"
+      // 1. Question + Option in one phrase: e.g. "question 2 option b", "question 1 a", "سؤال 3 ب"
       const qMatch = text.match(
         /(?:question|سؤال|كيسيون|q)\s*(10|[1-9]|one|two|three|four|five|six|seven|eight|nine|ten|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|واحد|جوج|ثلاثة|تلاتة|ربعة|خمسة|ستة|سبعة|تمنية|تسعود|عشرة)/i
       );
@@ -118,14 +112,12 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         const qNum = NUMBER_WORDS[token] || parseInt(token, 10);
         if (qNum >= 1 && qNum <= 10) {
           onChangeActiveQuestionNumber(qNum);
-
-          // Check if user also said option A/B/C/D in the same command
           const afterQ = text.slice((qMatch.index || 0) + qMatch[0].length);
           const optIdx = parseOptionLetter(afterQ);
           if (optIdx !== null) {
             const letter = ['A', 'B', 'C', 'D'][optIdx];
             onAnswerQuestion(qNum, optIdx);
-            const msg = `Selected Option ${letter} for Question ${qNum}`;
+            const msg = `Question ${qNum}: Option ${letter} selected`;
             setLastFeedback(`✓ ${msg}`);
             speakFeedback(msg);
             if (qNum < 10) {
@@ -134,17 +126,17 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
             return;
           } else {
             onReadQuestionAloud(qNum);
-            setLastFeedback(`✓ Focused on Question ${qNum} (Say "Option A, B, C, or D")`);
+            setLastFeedback(`✓ Focused Question ${qNum} (Say "A", "B", "C", or "D")`);
             return;
           }
         }
       }
 
-      // 2. Direct Option selection for the currently active question: e.g., "option A", "answer B", "choice C", "A", "B", "C", "D"
+      // 2. Direct Option selection for active question: "a", "b", "c", "d", "option a", "réponse b", "1", "2", "3", "4"
       const directOpt = parseOptionLetter(text);
       if (
         directOpt !== null &&
-        (text.length <= 2 ||
+        (text.length <= 3 ||
           text.includes('option') ||
           text.includes('answer') ||
           text.includes('choice') ||
@@ -164,8 +156,13 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         return;
       }
 
-      // 3. Read Question Aloud: "read question" / "read"
-      if (text.includes('read question') || text.includes('read aloud') || text === 'read') {
+      // 3. Read Question Aloud
+      if (
+        text.includes('read') ||
+        text.includes('lire') ||
+        text.includes('قرا') ||
+        text.includes('اقرأ')
+      ) {
         onReadQuestionAloud(activeQuestionNumber);
         setLastFeedback(`🔊 Reading Question ${activeQuestionNumber} aloud...`);
         return;
@@ -174,32 +171,31 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
       // 4. Submit Quiz / Check Answers
       if (
         text.includes('submit') ||
-        text.includes('check answer') ||
+        text.includes('check') ||
         text.includes('show answer') ||
-        text.includes('show solution') ||
-        text.includes('finish quiz') ||
+        text.includes('solution') ||
+        text.includes('finish') ||
         text.includes('valider') ||
         text.includes('النتيجة') ||
         text.includes('تصحيح')
       ) {
         onSubmitQuiz();
         setLastFeedback('✓ Submitted all 10 answers & revealed solutions!');
-        speakFeedback('Checking your ten answers now.');
+        speakFeedback('Checking your ten answers.');
         return;
       }
 
       // 5. Reset Quiz
-      if (text.includes('reset quiz') || text.includes('try again') || text.includes('restart quiz')) {
+      if (text.includes('reset') || text.includes('try again') || text.includes('recommencer')) {
         onResetQuiz();
         onChangeActiveQuestionNumber(1);
         setLastFeedback('✓ Quiz reset to Question 1');
-        speakFeedback('Quiz reset.');
         return;
       }
 
-      // 6. Select specific Video / Episode number (1 to 100): e.g. "video 12", "episode 5", "فيديو 3"
+      // 6. Select Video by number (1 to 100): e.g. "video 5", "episode 12", "فيديو 4"
       const epMatch = text.match(
-        /(?:video|episode|lesson|number|vidéo|فيديو|حلقة|درس)\s*(100|[1-9][0-9]?|one|two|three|four|five|six|seven|eight|nine|ten)/i
+        /(?:video|vidéo|episode|épisode|lesson|فيديو|حلقة|درس)\s*(100|[1-9][0-9]?|one|two|three|four|five|six|seven|eight|nine|ten|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)/i
       );
       if (epMatch) {
         const token = epMatch[1].toLowerCase();
@@ -207,7 +203,7 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         if (epNum >= 1 && epNum <= 100) {
           onSelectEpisode(epNum);
           onChangeActiveQuestionNumber(1);
-          const msg = `Opening Video number ${epNum}`;
+          const msg = `Playing Video #${epNum}`;
           setLastFeedback(`🎬 ${msg}`);
           speakFeedback(msg);
           return;
@@ -216,55 +212,49 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
 
       // 7. Next / Previous Video
       if (
-        text.includes('next video') ||
-        text.includes('next episode') ||
-        text === 'next' ||
+        text.includes('next') ||
         text.includes('suivant') ||
-        text.includes('الفيديو التالي') ||
+        text.includes('التالي') ||
         text.includes('زيد')
       ) {
         onNextEpisode();
         onChangeActiveQuestionNumber(1);
-        setLastFeedback('⏭️ Switched to Next Video');
-        speakFeedback('Next video');
+        setLastFeedback('⏭️ Switched to Next Video & Auto-Playing');
         return;
       }
 
       if (
-        text.includes('previous video') ||
-        text.includes('previous episode') ||
-        text.includes('back video') ||
-        text === 'previous' ||
+        text.includes('previous') ||
         text.includes('précédent') ||
-        text.includes('الفيديو السابق') ||
+        text.includes('precedent') ||
+        text.includes('السابق') ||
         text.includes('رجع')
       ) {
         onPrevEpisode();
         onChangeActiveQuestionNumber(1);
-        setLastFeedback('⏮️ Switched to Previous Video');
-        speakFeedback('Previous video');
+        setLastFeedback('⏮️ Switched to Previous Video & Auto-Playing');
         return;
       }
 
-      // 8. Video Player Controls: Play, Pause, Mute, Unmute, Restart, Forward, Backward
+      // 8. Play / Pause / Mute / Unmute / Restart Video
       if (
-        text === 'play' ||
-        text.includes('play video') ||
-        text.includes('start video') ||
+        text.includes('play') ||
+        text.includes('start') ||
+        text.includes('youtube') ||
+        text.includes('lecture') ||
         text.includes('شغل') ||
-        text.includes('خدم الفيديو') ||
-        text.includes('lecture')
+        text.includes('خدم')
       ) {
         onVideoCommand('play');
-        setLastFeedback('▶️ Playing YouTube Video');
+        setLastFeedback('▶️ Playing YouTube Video Now!');
         return;
       }
 
       if (
-        text === 'pause' ||
-        text === 'stop' ||
-        text.includes('pause video') ||
-        text.includes('stop video') ||
+        text.includes('pause') ||
+        text.includes('stop') ||
+        text.includes('arrête') ||
+        text.includes('arrete') ||
         text.includes('حبس') ||
         text.includes('وقف')
       ) {
@@ -275,7 +265,7 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
 
       if (text.includes('unmute') || text.includes('sound on') || text.includes('طلق الصوت')) {
         onVideoCommand('unmute');
-        setLastFeedback('🔊 Video Sound Unmuted');
+        setLastFeedback('🔊 Video Unmuted');
         return;
       }
 
@@ -285,110 +275,69 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         return;
       }
 
-      if (text.includes('restart video') || text.includes('from beginning') || text.includes('عاود من الاول')) {
+      if (text.includes('restart') || text.includes('beginning') || text.includes('عاود')) {
         onVideoCommand('restart');
         setLastFeedback('⏪ Restarted Video from 00:00');
         return;
       }
 
-      if (text.includes('forward') || text.includes('skip ahead')) {
-        onVideoCommand('forward');
-        setLastFeedback('⏩ Skipped Forward 30s');
-        return;
-      }
-
-      if (text.includes('backward') || text.includes('rewind')) {
-        onVideoCommand('backward');
-        setLastFeedback('⏪ Rewound 30s');
-        return;
-      }
-
-      // 9. Navigation Tabs (Schedule / Calendar, Grammar Lab, Videos)
+      // 9. Navigation Tabs
       if (
         text.includes('schedule') ||
         text.includes('calendar') ||
         text.includes('planning') ||
-        text.includes('جدول') ||
-        text.includes('كالندري')
+        text.includes('جدول')
       ) {
         onSwitchTab('calendar');
-        setLastFeedback('📅 Opened 3/Week Schedule Calendar');
-        speakFeedback('Opening schedule calendar');
+        setLastFeedback('📅 Opened 3/Week Schedule');
         return;
       }
 
-      if (text.includes('grammar') || text.includes('غرامار') || text.includes('قواعد')) {
+      if (text.includes('grammar') || text.includes('grammaire') || text.includes('قواعد')) {
         onSwitchTab('grammar');
         setLastFeedback('📖 Opened Grammar Lab');
-        speakFeedback('Opening grammar lab');
         return;
       }
 
-      if (text.includes('all videos') || text.includes('home') || text.includes('100 videos')) {
-        onSwitchTab('videos');
-        setLastFeedback('🎬 Opened 100 Videos Stage');
-        return;
-      }
-
-      // 10. Scroll Down / Scroll Up for TV
+      // 10. Scroll Down / Up
       if (
-        text.includes('scroll down') ||
-        text.includes('go down') ||
-        text.includes('questions') ||
+        text.includes('down') ||
+        text.includes('question') ||
         text.includes('quiz') ||
+        text.includes('descend') ||
         text.includes('هبط') ||
         text.includes('اسئلة')
       ) {
-        window.scrollBy({ top: 550, behavior: 'smooth' });
-        setLastFeedback('⬇️ Scrolled Down to Questions');
+        window.scrollBy({ top: 600, behavior: 'smooth' });
+        setLastFeedback('⬇️ Scrolled Down to Quiz Questions');
         return;
       }
 
-      if (
-        text.includes('scroll up') ||
-        text.includes('go up') ||
-        text.includes('top') ||
-        text.includes('طلع')
-      ) {
+      if (text.includes('up') || text.includes('top') || text.includes('monte') || text.includes('طلع')) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setLastFeedback('⬆️ Scrolled Up to Video Player');
         return;
       }
 
-      // 11. Level Filter
-      if (text.includes('level 3') || text.includes('level l3')) {
-        onFilterLevel('L3');
-        setLastFeedback('✓ Filtered to Level L3 (Videos 1–50)');
-        return;
-      }
-      if (text.includes('level 4') || text.includes('level l4')) {
-        onFilterLevel('L4');
-        setLastFeedback('✓ Filtered to Level L4 (Videos 51–100)');
-        return;
-      }
-
-      // 12. Voice Search / Dictation into Search Box
-      if (text.startsWith('search ') || text.startsWith('find ') || text.startsWith('قلب على ')) {
-        const query = text
-          .replace(/^(search|find|قلب على)\s+/i, '')
-          .trim();
+      // 11. Search
+      if (text.startsWith('search ') || text.startsWith('find ') || text.startsWith('chercher ')) {
+        const query = text.replace(/^(search|find|chercher)\s+/i, '').trim();
         onSearchText(query);
-        setLastFeedback(`🔍 Voice Search: "${query}"`);
-        speakFeedback(`Searching for ${query}`);
+        setLastFeedback(`🔍 Searching videos for: "${query}"`);
         return;
       }
 
-      if (text.includes('clear search') || text.includes('show all')) {
+      if (text.includes('clear') || text.includes('show all') || text.includes('tous')) {
         onSearchText('');
         onFilterLevel('ALL');
-        setLastFeedback('✓ Cleared search filter (Showing all 100 videos)');
+        setLastFeedback('✓ Showing all 100 videos');
         return;
       }
 
-      // Default: If user dictated a topic name (like "space", "dinosaurs", "animals"), search for it!
-      if (text.length >= 3) {
+      // Fallback: search by spoken keyword
+      if (text.length >= 2) {
         onSearchText(text);
-        setLastFeedback(`🔍 Heard "${rawTranscript}" — Searching videos for "${rawTranscript}"`);
+        setLastFeedback(`🔍 Heard "${rawTranscript}" — Filtering videos by "${rawTranscript}"`);
       }
     },
     [
@@ -409,112 +358,124 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
     ]
   );
 
-  // Setup Web Speech API (SpeechRecognition / webkitSpeechRecognition)
+  // ALWAYS KEEP THE TV VOICE RECEIVER READY SO THE HARDWARE REMOTE MIC BUTTON WORKS INSTANTLY WITHOUT CLICKING ANY START BUTTON!
+  useEffect(() => {
+    const keepReceiverFocused = () => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isOtherInput =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') &&
+        activeEl !== hiddenReceiverRef.current;
+
+      if (!isOtherInput && hiddenReceiverRef.current) {
+        hiddenReceiverRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    keepReceiverFocused();
+    const interval = setInterval(keepReceiverFocused, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Also try background Web Speech API automatically (zero clicks) if supported by the browser
   useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
+    let isMounted = true;
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
-    recognition.lang = voiceLang;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
+    recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
-      const lastResultIdx = event.results.length - 1;
-      const transcript = event.results[lastResultIdx][0].transcript;
+      const lastIdx = event.results.length - 1;
+      const transcript = event.results[lastIdx]?.[0]?.transcript;
       if (transcript) {
         executeSpokenCommand(transcript);
       }
     };
 
-    recognition.onerror = () => {
-      // On TV browsers, if mic times out, restart if continuousMode is active
-    };
-
     recognition.onend = () => {
-      if (shouldKeepListeningRef.current && continuousMode) {
+      if (isMounted) {
         try {
           recognition.start();
         } catch {
-          setIsListening(false);
+          // ignore
         }
-      } else {
-        setIsListening(false);
       }
     };
 
-    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      // ignore if browser requires hardware remote input box instead
+    }
 
     return () => {
-      shouldKeepListeningRef.current = false;
+      isMounted = false;
       try {
         recognition.stop();
       } catch {
         // ignore
       }
     };
-  }, [voiceLang, continuousMode, executeSpokenCommand]);
+  }, [executeSpokenCommand]);
 
-  const toggleVoiceListening = () => {
-    const recognition = recognitionRef.current;
-    if (!recognition) {
-      // Fallback for Smart TV remotes whose built-in Mic types into a focused input field:
-      voiceInputBoxRef.current?.focus();
-      setLastFeedback(
-        '🎙️ Focused Voice Box! Press the Microphone button on your TV Remote and speak.'
-      );
-      return;
-    }
-
-    if (isListening) {
-      shouldKeepListeningRef.current = false;
-      try {
-        recognition.stop();
-      } catch {
-        // ignore
-      }
-      setIsListening(false);
-      setLastFeedback('🎙️ Voice Mic Paused. Click or press OK to start listening again.');
-    } else {
-      shouldKeepListeningRef.current = true;
-      try {
-        recognition.lang = voiceLang;
-        recognition.start();
-        setIsListening(true);
-        setLastFeedback(
-          '🟢 LISTENING LIVE! Speak now: "Play video", "Video 3", "Question 1 Option A", "Submit"...'
-        );
-      } catch {
-        voiceInputBoxRef.current?.focus();
-      }
-    }
-  };
-
-  // Global TV Remote Keyboard & D-Pad Shortcuts (Numbers 1-4 for A/B/C/D, Media Play/Pause, etc.)
+  // Global TV Remote Keys (Numbers 1/2/3/4 for Options A/B/C/D, Media Play/Pause, Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Do not intercept if typing inside an input other than our TV command bar
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isOtherInput =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') &&
+        activeEl !== hiddenReceiverRef.current;
+      if (isOtherInput) return;
 
-      if (e.key === '1' || e.key.toLowerCase() === 'a') {
-        onAnswerQuestion(activeQuestionNumber, 0);
-        setLastFeedback(`✓ Remote Key: Question ${activeQuestionNumber} → Option A`);
-      } else if (e.key === '2' || e.key.toLowerCase() === 'b') {
-        onAnswerQuestion(activeQuestionNumber, 1);
-        setLastFeedback(`✓ Remote Key: Question ${activeQuestionNumber} → Option B`);
-      } else if (e.key === '3' || e.key.toLowerCase() === 'c') {
-        onAnswerQuestion(activeQuestionNumber, 2);
-        setLastFeedback(`✓ Remote Key: Question ${activeQuestionNumber} → Option C`);
-      } else if (e.key === '4' || e.key.toLowerCase() === 'd') {
-        onAnswerQuestion(activeQuestionNumber, 3);
-        setLastFeedback(`✓ Remote Key: Question ${activeQuestionNumber} → Option D`);
-      } else if (e.key === 'MediaPlayPause' || e.key === 'MediaPlay') {
+      // If user presses 1, 2, 3, 4 on TV remote while hidden receiver is empty, immediately select Option A, B, C, D!
+      if (!liveDictationText) {
+        if (e.key === '1') {
+          e.preventDefault();
+          onAnswerQuestion(activeQuestionNumber, 0);
+          const nextQ = activeQuestionNumber < 10 ? activeQuestionNumber + 1 : 10;
+          onChangeActiveQuestionNumber(nextQ);
+          setLastFeedback(`✓ Remote Button [1]: Question ${activeQuestionNumber} → Option A`);
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          onAnswerQuestion(activeQuestionNumber, 1);
+          const nextQ = activeQuestionNumber < 10 ? activeQuestionNumber + 1 : 10;
+          onChangeActiveQuestionNumber(nextQ);
+          setLastFeedback(`✓ Remote Button [2]: Question ${activeQuestionNumber} → Option B`);
+          return;
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          onAnswerQuestion(activeQuestionNumber, 2);
+          const nextQ = activeQuestionNumber < 10 ? activeQuestionNumber + 1 : 10;
+          onChangeActiveQuestionNumber(nextQ);
+          setLastFeedback(`✓ Remote Button [3]: Question ${activeQuestionNumber} → Option C`);
+          return;
+        }
+        if (e.key === '4') {
+          e.preventDefault();
+          onAnswerQuestion(activeQuestionNumber, 3);
+          const nextQ = activeQuestionNumber < 10 ? activeQuestionNumber + 1 : 10;
+          onChangeActiveQuestionNumber(nextQ);
+          setLastFeedback(`✓ Remote Button [4]: Question ${activeQuestionNumber} → Option D`);
+          return;
+        }
+        if (e.key === '0') {
+          e.preventDefault();
+          onSubmitQuiz();
+          setLastFeedback('✓ Remote Button [0]: Submitted all 10 answers!');
+          return;
+        }
+      }
+
+      if (e.key === 'MediaPlayPause' || e.key === 'MediaPlay') {
         onVideoCommand('play');
       } else if (e.key === 'MediaPause' || e.key === 'MediaStop') {
         onVideoCommand('pause');
@@ -527,158 +488,136 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeQuestionNumber, onAnswerQuestion, onNextEpisode, onPrevEpisode, onVideoCommand]);
+  }, [
+    activeQuestionNumber,
+    liveDictationText,
+    onAnswerQuestion,
+    onChangeActiveQuestionNumber,
+    onNextEpisode,
+    onPrevEpisode,
+    onSubmitQuiz,
+    onVideoCommand
+  ]);
 
-  const handleManualVoiceBoxSubmit = (e: React.FormEvent) => {
+  // Whenever the TV remote's built-in voice button injects text into our always-focused receiver, auto-execute after 650ms!
+  const handleReceiverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLiveDictationText(val);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (val.trim()) {
+      debounceTimerRef.current = setTimeout(() => {
+        executeSpokenCommand(val);
+      }, 650);
+    }
+  };
+
+  const handleReceiverSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualCommandInput.trim()) return;
-    executeSpokenCommand(manualCommandInput);
-    setManualCommandInput('');
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    if (liveDictationText.trim()) {
+      executeSpokenCommand(liveDictationText);
+    }
   };
 
   return (
     <div className="mb-5 rounded-2xl bg-slate-900 text-white border-2 border-amber-400 shadow-lg p-3.5 sm:p-4">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Left: Giant TV Remote Voice Mic Button + Live Status */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={toggleVoiceListening}
-            className={`px-4 py-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer shadow-md focus:ring-4 focus:ring-white ${
-              isListening
-                ? 'bg-emerald-500 text-slate-950 animate-pulse'
-                : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
-            }`}
-          >
-            {isListening ? (
-              <>
-                <Mic className="w-5 h-5" />
-                <span>🟢 VOICE MIC ON (SPEAK NOW)</span>
-              </>
-            ) : (
-              <>
-                <MicOff className="w-5 h-5" />
-                <span>🎙️ START TV VOICE CONTROL</span>
-              </>
-            )}
-          </button>
-
-          {/* Language Selector for Voice Recognition (English / Français / الدارجة) */}
-          <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
-            {(
-              [
-                { code: 'en-US', label: 'EN Voice' },
-                { code: 'fr-FR', label: 'FR Voix' },
-                { code: 'ar-MA', label: 'صوت عربي/دارجة' }
-              ] as const
-            ).map((l) => (
-              <button
-                key={l.code}
-                onClick={() => setVoiceLang(l.code)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                  voiceLang === l.code
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Quick TV Remote One-Click / OK Buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => onVideoCommand('play')}
-              className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer focus:ring-2 focus:ring-amber-400"
-              title="Play Video"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Play</span>
-            </button>
-            <button
-              onClick={() => onVideoCommand('pause')}
-              className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer focus:ring-2 focus:ring-amber-400"
-              title="Pause Video"
-            >
-              <Pause className="w-3.5 h-3.5" />
-              <span>Pause</span>
-            </button>
-            <button
-              onClick={onPrevEpisode}
-              className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer focus:ring-2 focus:ring-amber-400"
-              title="Previous Video"
-            >
-              <SkipBack className="w-3.5 h-3.5" />
-              <span>Prev</span>
-            </button>
-            <button
-              onClick={onNextEpisode}
-              className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer focus:ring-2 focus:ring-amber-400"
-              title="Next Video"
-            >
-              <SkipForward className="w-3.5 h-3.5" />
-              <span>Next</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Right: Smart TV Remote Dictation Input Box (Works with ALL Android TV / LG / Samsung Remote Mic Buttons!) */}
+        {/* Left: Always-Ready TV Remote Dictation Receiver (NO Start/Stop button!) */}
         <form
-          onSubmit={handleManualVoiceBoxSubmit}
-          className="flex items-center gap-2 flex-1 max-w-md"
+          onSubmit={handleReceiverSubmit}
+          className="flex items-center gap-2.5 flex-1"
         >
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-extrabold whitespace-nowrap">
+            <Tv className="w-4 h-4 text-emerald-400 animate-pulse" />
+            <span>TV REMOTE VOICE READY</span>
+          </div>
+
           <div className="relative flex-1">
-            <Tv className="w-4 h-4 text-amber-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
-              ref={voiceInputBoxRef}
+              ref={hiddenReceiverRef}
               type="text"
-              value={manualCommandInput}
-              onChange={(e) => {
-                setManualCommandInput(e.target.value);
-                // Auto-execute when TV remote voice dictation pastes a full command
-              }}
-              placeholder='TV Remote Mic Box: Say "Video 2", "Option A", "Play"...'
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400"
+              autoFocus
+              value={liveDictationText}
+              onChange={handleReceiverChange}
+              placeholder='Just press your TV Remote Mic Button & speak ("Play", "Video 3", "Option A", "Submit")...'
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border-2 border-amber-400 text-xs sm:text-sm font-bold text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
             />
           </div>
+        </form>
+
+        {/* Right: Direct TV Remote Action Buttons + Help */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
-            type="submit"
-            className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs whitespace-nowrap cursor-pointer"
+            type="button"
+            onClick={() => onVideoCommand('play')}
+            className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center gap-1 cursor-pointer"
           >
-            Run
+            <Play className="w-3.5 h-3.5" />
+            <span>Play</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onVideoCommand('pause')}
+            className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <Pause className="w-3.5 h-3.5" />
+            <span>Pause</span>
+          </button>
+          <button
+            type="button"
+            onClick={onPrevEpisode}
+            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <SkipBack className="w-3.5 h-3.5" />
+            <span>Prev</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNextEpisode}
+            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <SkipForward className="w-3.5 h-3.5" />
+            <span>Next</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onReadQuestionAloud(activeQuestionNumber)}
+            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>Read Q{activeQuestionNumber}</span>
           </button>
           <button
             type="button"
             onClick={() => setShowHelpGuide((p) => !p)}
-            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Commands</span>
+            <span>Guide</span>
             {showHelpGuide ? (
               <ChevronUp className="w-3.5 h-3.5" />
             ) : (
               <ChevronDown className="w-3.5 h-3.5" />
             )}
           </button>
-        </form>
+        </div>
       </div>
 
-      {/* Live Status Strip: Shows Active Question on TV & What Voice Command Was Heard */}
-      <div className="mt-2.5 pt-2.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+      {/* Live Status Bar */}
+      <div className="mt-2.5 pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="px-2.5 py-1 rounded-md bg-amber-400/20 text-amber-300 font-mono-num font-bold">
-            TV Focus: Video #{currentEpisodeId} · Active Question #{activeQuestionNumber}/10
+          <span className="px-2.5 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono-num font-bold">
+            Video #{currentEpisodeId} · Active Question #{activeQuestionNumber}/10 (Or press 1, 2, 3, 4 on Remote for A, B, C, D)
           </span>
-          <button
-            onClick={() => onReadQuestionAloud(activeQuestionNumber)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold cursor-pointer"
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>Read Q{activeQuestionNumber} Aloud</span>
-          </button>
-          {lastTranscript && (
-            <span className="text-emerald-300 font-semibold">
-              You said: “{lastTranscript}”
+          {lastExecutedText && (
+            <span className="text-emerald-300 font-bold">
+              Heard: “{lastExecutedText}”
             </span>
           )}
         </div>
@@ -689,42 +628,37 @@ export const VoiceTvController: React.FC<VoiceTvControllerProps> = ({
         </div>
       </div>
 
-      {/* Expandable List of Voice Commands for TV */}
       {showHelpGuide && (
         <div className="mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
             <div className="font-bold text-amber-400 mb-1">
-              🎬 1. Control Videos by Voice:
+              🎬 1. Videos (Auto-Plays on TV!):
             </div>
             <ul className="space-y-1 text-slate-300">
-              <li>• Say <b>“Play video”</b> or <b>“شغل”</b> to start playing</li>
-              <li>• Say <b>“Pause video”</b> or <b>“حبس”</b> to pause</li>
-              <li>• Say <b>“Video 5”</b> or <b>“فيديو 5”</b> (1 to 100)</li>
-              <li>• Say <b>“Next video”</b> / <b>“Previous video”</b></li>
+              <li>• Videos start playing automatically when opened!</li>
+              <li>• Speak into your TV remote: <b>“Play”</b>, <b>“Pause”</b>, <b>“Video 5”</b>, <b>“Next”</b></li>
             </ul>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
             <div className="font-bold text-emerald-400 mb-1">
-              ✅ 2. Answer Quiz Questions by Voice:
+              ✅ 2. Answer Questions (Voice or 1-2-3-4 Keys):
             </div>
             <ul className="space-y-1 text-slate-300">
-              <li>• Say <b>“Option A”</b>, <b>“Option B”</b>, <b>“Option C”</b>, or <b>“Option D”</b></li>
-              <li>• Or say <b>“Question 3 Option B”</b></li>
-              <li>• Say <b>“Read question”</b> to hear it spoken aloud</li>
-              <li>• Say <b>“Submit”</b> or <b>“Check answers”</b> when done</li>
+              <li>• Speak into your remote: <b>“Option A”</b>, <b>“Option B”</b>, <b>“Option C”</b>, <b>“Option D”</b></li>
+              <li>• Or press numbers <b>1, 2, 3, 4</b> on your TV remote for A, B, C, D!</li>
+              <li>• Say <b>“Submit”</b> (or press <b>0</b>) to check all 10 answers</li>
             </ul>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
             <div className="font-bold text-sky-400 mb-1">
-              🔍 3. Type in Boxes & Navigate by Voice:
+              🔍 3. Search & Scroll:
             </div>
             <ul className="space-y-1 text-slate-300">
-              <li>• Say <b>“Search dinosaurs”</b> or <b>“Search space”</b></li>
-              <li>• Say <b>“Scroll down”</b> / <b>“Scroll up”</b></li>
-              <li>• Say <b>“Schedule”</b> or <b>“Grammar”</b> to switch tabs</li>
-              <li>• Or press <b>1, 2, 3, 4</b> on your TV remote for A, B, C, D!</li>
+              <li>• Say <b>“Down”</b> / <b>“Questions”</b> to scroll to the quiz</li>
+              <li>• Say <b>“Up”</b> to scroll back to the video</li>
+              <li>• Say any topic (e.g. <b>“Space”</b>, <b>“Dinosaurs”</b>) to filter videos</li>
             </ul>
           </div>
         </div>

@@ -49,8 +49,10 @@ export const RealVideoPlayer: React.FC<RealVideoPlayerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const activeYoutubeId = customYoutubeId || episode.realVideo.youtubeId;
-  // enablejsapi=1 allows our TV Voice Controller to Play, Pause, Mute, Unmute, and Restart the YouTube video!
-  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?enablejsapi=1&rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en`;
+  const originParam =
+    typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
+  // autoplay=1 & enablejsapi=1 so the YouTube video starts automatically on Smart TV and responds to Play/Pause voice commands!
+  const embedSrc = `https://www.youtube.com/embed/${activeYoutubeId}?autoplay=1&enablejsapi=1&rel=0&cc_load_policy=1&cc_lang_pref=en&hl=en${originParam}`;
   const directWatchUrl = `https://www.youtube.com/watch?v=${activeYoutubeId}`;
 
   const sendYoutubeCommand = (func: string, args: any[] = []) => {
